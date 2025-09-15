@@ -9,7 +9,7 @@ import {
   getPostById,
   updatePost,
   deletePostById,
-} from '../service/posts.js'; // <-- keep ONE import, include .js
+} from '../services/posts.js'; // <-- keep ONE import, include .js
 import { Post } from '../db/models/post.js'; // <-- include .js
 
 // Seed data
