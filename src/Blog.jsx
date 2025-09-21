@@ -22,7 +22,7 @@ export function Blog() {
 
   return (
     <div style={{ padding: 8 }}>
-      <h1>Welcome to my Blog !!</h1>
+      <h1>Welcome To My Blog !</h1>
       <CreatePost />
 
       <br />
