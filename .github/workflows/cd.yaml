@@ -4,15 +4,20 @@ on:
   push:
     branches: [ main ]
 
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # show the deployed URL on the run page
+
+    # Show the deployed URL on the run page
     environment:
       name: production
       url: ${{ steps.deploy-frontend.outputs.url }}
 
-    # required for google-github-actions/auth when using OIDC/credentials
+    # Needed for google-github-actions/auth with Workload Identity / JSON creds
     permissions:
       contents: read
       id-token: write
@@ -22,50 +27,58 @@ jobs:
 
       # ─── Docker Hub login ─────────────────────────────────────────────────────
       - name: Login to Docker Hub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       # ─── Google Cloud auth (for Cloud Run) ────────────────────────────────────
-      - uses: google-github-actions/auth@v1
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
         with:
-          # either set service_account for WIF, or just provide credentials_json
-          # service_account: ${{ secrets.GOOGLECLOUD_SERVICE_ACCOUNT }}
+          # Use either a service account JSON or WIF (service_account); JSON shown:
           credentials_json: ${{ secrets.GOOGLECLOUD_CREDENTIALS }}
 
-      # ─── Build & push BACKEND image ───────────────────────────────────────────
-      - name: Build and push backend image
+      # ---------- BACKEND -------------------------------------------------------
+      - name: Build & push backend image
         uses: docker/build-push-action@v4
         with:
           context: ./backend
           file: ./backend/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/blogbackend:latest
+          no-cache: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/blogbackend:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/blogbackend:latest
 
       - id: deploy-backend
-        name: Deploy backend
+        name: Deploy backend (Cloud Run)
         uses: google-github-actions/deploy-cloudrun@v1
         with:
           service: blog-backend
-          image: ${{ secrets.DOCKERHUB_USERNAME }}/blogbackend:latest
+          image: ${{ secrets.DOCKERHUB_USERNAME }}/blogbackend:${{ github.sha }}
           region: ${{ secrets.GOOGLECLOUD_REGION }}
+          allow-unauthenticated: true
 
-      # ─── Build & push FRONTEND image (inject backend URL) ─────────────────────
-      - name: Build and push frontend image
+      # ---------- FRONTEND ------------------------------------------------------
+      - name: Build & push frontend image
         uses: docker/build-push-action@v4
         with:
           context: .
           file: ./Dockerfile
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/blogfrontend:latest
+          no-cache: true
           build-args: |
             VITE_BACKEND_URL=${{ steps.deploy-backend.outputs.url }}/api/v1
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/blogfrontend:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/blogfrontend:latest
 
       - id: deploy-frontend
-        name: Deploy frontend
+        name: Deploy frontend (Cloud Run)
         uses: google-github-actions/deploy-cloudrun@v1
         with:
           service: blog-frontend
-          image: ${{ secrets.DOCKERHUB_USERNAME }}/blogfrontend:latest
+          image: ${{ secrets.DOCKERHUB_USERNAME }}/blogfrontend:${{ github.sha }}
           region: ${{ secrets.GOOGLECLOUD_REGION }}
+          allow-unauthenticated: true
