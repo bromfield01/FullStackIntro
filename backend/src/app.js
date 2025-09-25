@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { postsRoutes } from './routes/posts.js';
+import { userRoutes } from './routes/users.js';
 
 const app = express();
 
@@ -20,6 +21,7 @@ app.get('/health', (_req, res) =>
 
 // posts API
 postsRoutes(app);
+userRoutes(app);
 
 // 404
 app.use((_req, res) => res.status(404).json({ message: 'Route not found' }));
