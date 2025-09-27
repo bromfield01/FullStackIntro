@@ -2,74 +2,76 @@
 import mongoose from 'mongoose';
 import { Post } from '../db/models/post.js';
 
-/** Create */
-export async function createPost({ title, author, contents, tags }) {
-  const post = new Post({ title, author, contents, tags });
+export async function createPost(userId, { title, contents, tags }) {
+  const post = new Post({ title, author: userId, contents, tags });
   return await post.save();
 }
 
-/** Internal list helper with safe sorting */
-async function listPosts(
-  query = {},
-  { sortBy = 'createdAt', sortOrder = 'desc' } = {},
-) {
+function buildSort({ sortBy = 'createdAt', sortOrder = 'desc' } = {}) {
   const dir =
     sortOrder === 'desc' || sortOrder === 'descending' || sortOrder === -1
       ? -1
       : 1;
   const field = sortBy || 'createdAt';
-  return await Post.find(query).sort({ [field]: dir });
+  return { [field]: dir };
 }
 
-/** List all */
+async function listPosts(userId /* optional */, query = {}, options = {}) {
+  const filter = { ...query };
+  if (userId) filter.author = userId; // only add when provided
+  return await Post.find(filter).sort(buildSort(options));
+}
+
+// PUBLIC reads (no userId passed) will work fine now:
 export async function listAllPosts(options) {
-  return await listPosts({}, options);
+  return await listPosts(undefined, {}, options);
 }
 
-/** List by author (correct plural name) */
-export async function listPostsByAuthor(author, options) {
-  return await listPosts({ author }, options);
+export async function listPostsByAuthor(authorId, options) {
+  // Require a valid ObjectId if “author” is provided as a query parameter
+  if (!mongoose.isValidObjectId(authorId)) {
+    // Return empty list rather than throwing, or you can return 400 in the route
+    return [];
+  }
+  return await listPosts(authorId, {}, options);
 }
-/** Back-compat alias for older imports */
+
 export const listPostByAuthor = listPostsByAuthor;
 
-/** List by tag(s) */
 export async function listPostsByTag(tags, options) {
   const values = Array.isArray(tags) ? tags : [tags];
-  // $in handles single or multiple tags
-  return await listPosts({ tags: { $in: values } }, options);
+  return await listPosts(undefined, { tags: { $in: values } }, options);
 }
 
-/** Get by id (safe) */
 export async function getPostById(id) {
   if (!mongoose.isValidObjectId(id)) return null;
   return await Post.findById(id);
 }
 
-/** Update by id (PATCH-style, whitelist fields) */
-export async function updatePostById(id, updates = {}) {
+// Auth-required mutations (keep user scoping)
+export async function updatePostById(userId, id, updates = {}) {
   if (!mongoose.isValidObjectId(id)) return null;
-  const ALLOWED = new Set(['title', 'author', 'contents', 'tags']);
+  const ALLOWED = new Set(['title', 'contents', 'tags']); // no author changes
   const toSet = {};
   for (const [k, v] of Object.entries(updates)) {
     if (!ALLOWED.has(k) || v === undefined) continue;
     toSet[k] = k === 'tags' && !Array.isArray(v) ? [v] : v;
   }
-  if (Object.keys(toSet).length === 0) return await Post.findById(id);
-  return await Post.findByIdAndUpdate(
-    id,
+  if (Object.keys(toSet).length === 0) {
+    return await Post.findOne({ _id: id, author: userId });
+  }
+  return await Post.findOneAndUpdate(
+    { _id: id, author: userId },
     { $set: toSet },
     { new: true, runValidators: true },
   );
 }
 
-/** Alias for compatibility */
-export async function updatePost(postId, payload) {
-  return updatePostById(postId, payload);
+export async function updatePost(userId, postId, payload) {
+  return updatePostById(userId, postId, payload);
 }
 
-/** Delete by id (safe) */
-export async function deletePostById(id) {
+export async function deletePostById(userId, id) {
   if (!mongoose.isValidObjectId(id)) return null;
-  return await Post.findByIdAndDelete(id);
+  return await Post.findOneAndDelete({ _id: id, author: userId });
 }

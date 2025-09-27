@@ -1,35 +1,37 @@
-// backend/src/services/users.js
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { User } from '../db/models/user.js';
 
-// Create a new user with a hashed password
+const { JWT_SECRET } = process.env;
+
 export async function createUser({ username, password }) {
   const hashedPassword = await bcrypt.hash(password, 10);
+  // schema will trim/lowercase on save, so no need to do it here
   const user = new User({ username, password: hashedPassword });
   return await user.save();
 }
 
-// Log in a user and return a JWT
 export async function loginUser({ username, password }) {
-  // Find user by username
-  const user = await User.findOne({ username });
-  if (!user) {
+  if (!JWT_SECRET) throw new Error('JWT_SECRET is not set');
+
+  // IMPORTANT: select the password hash; also normalize the query
+  const normalized = String(username ?? '')
+    .trim()
+    .toLowerCase();
+  const user = await User.findOne({ username: normalized }).select('+password');
+
+  if (!user || !user.password) {
     throw new Error('invalid username!');
   }
 
-  // Compare hashed password
-  const isPasswordCorrect = await bcrypt.compare(password, user.password);
-  if (!isPasswordCorrect) {
-    throw new Error('invalid password!');
-  }
+  const ok = await bcrypt.compare(String(password), String(user.password));
+  if (!ok) throw new Error('invalid password!');
 
-  // Create JWT token
   const token = jwt.sign(
-    { sub: user._id }, // subject = user id
-    process.env.JWT_SECRET, // secret key from .env
-    { expiresIn: '24h' }, // token lifetime
+    { sub: user._id.toString(), username: user.username },
+    JWT_SECRET,
+    { algorithm: 'HS256', expiresIn: '24h' },
   );
 
-  return token;
+  return token; // string
 }

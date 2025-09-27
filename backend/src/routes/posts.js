@@ -9,15 +9,20 @@ import {
   deletePostById,
 } from '../services/posts.js';
 
+import { requireAuth } from '../middleware/jwt.js';
+
 export function postsRoutes(app) {
-  // GET /api/v1/posts?author=... | ?tag=... | ?tags=a,b | ?sortBy=...&sortOrder=asc|desc
+  // --------------------------------------------------
+  // PUBLIC: GET /api/v1/posts
+  //   ?author=... | ?tag=... | ?tags=a,b | ?sortBy=...&sortOrder=asc|desc
+  // --------------------------------------------------
   app.get('/api/v1/posts', async (req, res) => {
     const { author, tag, tags, sortBy, sortOrder } = req.query;
     const options = { sortBy, sortOrder };
 
     try {
       const hasAuthor = typeof author === 'string' && author.trim() !== '';
-      const tagParam = tags ?? tag; // support either ?tag=... or ?tags=...
+      const tagParam = tags ?? tag;
       const hasTag =
         typeof tagParam !== 'undefined' &&
         tagParam !== null &&
@@ -30,22 +35,20 @@ export function postsRoutes(app) {
       }
 
       if (hasAuthor) {
+        // NOTE: If your services are user-scoped, ensure listPostsByAuthor
+        //       supports public read (e.g., by ignoring userId or exposing a public variant).
         const posts = await listPostsByAuthor(author, options);
         return res.json(posts);
       }
 
       if (hasTag) {
-        // Accept comma-separated string or repeated query (?tags=a&tags=b)
         const values = Array.isArray(tagParam)
           ? tagParam
           : String(tagParam)
               .split(',')
               .map((s) => s.trim())
               .filter(Boolean);
-        const posts = await listPostsByTag(
-          values.length === 1 ? values[0] : values,
-          options,
-        );
+        const posts = await listPostsByTag(values, options);
         return res.json(posts);
       }
 
@@ -57,9 +60,13 @@ export function postsRoutes(app) {
     }
   });
 
-  // GET /api/v1/posts/:id
+  // --------------------------------------------------
+  // PUBLIC: GET /api/v1/posts/:id
+  // --------------------------------------------------
   app.get('/api/v1/posts/:id', async (req, res) => {
     try {
+      // NOTE: If your services are user-scoped, ensure getPostById
+      //       supports public read or add a public variant.
       const post = await getPostById(req.params.id);
       if (post === null) return res.status(404).end();
       return res.json(post);
@@ -69,16 +76,19 @@ export function postsRoutes(app) {
     }
   });
 
-  // POST /api/v1/posts
-  // body: { title (required), author?, contents?, tags?: string|string[] }
-  app.post('/api/v1/posts', async (req, res) => {
+  // --------------------------------------------------
+  // AUTH’D: POST /api/v1/posts
+  // body: { title (required), contents?, tags?: string|string[] }
+  // --------------------------------------------------
+  app.post('/api/v1/posts', requireAuth, async (req, res) => {
+    const userId = req.auth?.sub;
+
     try {
-      let { title, author, contents, tags } = req.body ?? {};
+      let { title, contents, tags } = req.body ?? {};
       if (!title || typeof title !== 'string' || !title.trim()) {
         return res.status(400).json({ error: 'title is required' });
       }
 
-      // Normalize tags if a comma-separated string is provided
       if (typeof tags === 'string') {
         tags = tags
           .split(',')
@@ -86,9 +96,8 @@ export function postsRoutes(app) {
           .filter(Boolean);
       }
 
-      const created = await createPost({
+      const created = await createPost(userId, {
         title: title.trim(),
-        author,
         contents,
         tags,
       });
@@ -99,13 +108,16 @@ export function postsRoutes(app) {
     }
   });
 
-  // PATCH /api/v1/posts/:id
-  // body: any subset of { title, author, contents, tags }
-  app.patch('/api/v1/posts/:id', async (req, res) => {
+  // --------------------------------------------------
+  // AUTH’D: PATCH /api/v1/posts/:id
+  // body: any subset of { title, contents, tags }
+  // --------------------------------------------------
+  app.patch('/api/v1/posts/:id', requireAuth, async (req, res) => {
+    const userId = req.auth?.sub;
+
     try {
       const updates = { ...req.body };
 
-      // Normalize tags if sent as a comma-separated string
       if (typeof updates.tags === 'string') {
         updates.tags = updates.tags
           .split(',')
@@ -113,7 +125,7 @@ export function postsRoutes(app) {
           .filter(Boolean);
       }
 
-      const updated = await updatePostById(req.params.id, updates);
+      const updated = await updatePostById(userId, req.params.id, updates);
       if (updated === null) return res.status(404).end();
       return res.json(updated);
     } catch (err) {
@@ -122,10 +134,14 @@ export function postsRoutes(app) {
     }
   });
 
-  // DELETE /api/v1/posts/:id
-  app.delete('/api/v1/posts/:id', async (req, res) => {
+  // --------------------------------------------------
+  // AUTH’D: DELETE /api/v1/posts/:id
+  // --------------------------------------------------
+  app.delete('/api/v1/posts/:id', requireAuth, async (req, res) => {
+    const userId = req.auth?.sub;
+
     try {
-      const deleted = await deletePostById(req.params.id);
+      const deleted = await deletePostById(userId, req.params.id);
       if (deleted === null) return res.status(404).end();
       return res.status(204).end();
     } catch (err) {
