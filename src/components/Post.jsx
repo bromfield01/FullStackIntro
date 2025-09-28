@@ -1,15 +1,19 @@
 // src/components/Post.jsx
 import PropTypes from 'prop-types';
+import { User } from './User.jsx';
 
-export function Post({ title, contents, author }) {
+export function Post({ title, contents, author: userId }) {
   return (
     <article>
       <h3>{title}</h3>
       <div>{contents}</div>
-      {author && (
+      {userId && (
         <p>
           <em>
-            Written by <strong>{author}</strong>
+            Written by{' '}
+            <strong>
+              <User id={userId} />
+            </strong>
           </em>
         </p>
       )}

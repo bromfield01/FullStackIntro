@@ -1,6 +1,7 @@
 // backend/src/services/posts.js
 import mongoose from 'mongoose';
 import { Post } from '../db/models/post.js';
+import { User } from '../db/models/user.js';
 
 export async function createPost(userId, { title, contents, tags }) {
   const post = new Post({ title, author: userId, contents, tags });
@@ -27,13 +28,14 @@ export async function listAllPosts(options) {
   return await listPosts(undefined, {}, options);
 }
 
-export async function listPostsByAuthor(authorId, options) {
+export async function listPostsByAuthor(authorUsername, options) {
   // Require a valid ObjectId if “author” is provided as a query parameter
-  if (!mongoose.isValidObjectId(authorId)) {
+  if (!mongoose.isValidObjectId(authorUsername)) {
     // Return empty list rather than throwing, or you can return 400 in the route
+    // or use authorId
     return [];
   }
-  return await listPosts(authorId, {}, options);
+  return await listPosts(authorUsername, {}, options);
 }
 
 export const listPostByAuthor = listPostsByAuthor;

@@ -1,7 +1,12 @@
 // backend/src/routes/users.js
-import { createUser, loginUser } from '../services/users.js';
+import { createUser, loginUser, getUserInfoById } from '../services/users.js';
 
 export function userRoutes(app) {
+  app.get('/api/v1/users/:id', async (req, res) => {
+    const userInfo = await getUserInfoById(req.params.id);
+    return res.status(200).send(userInfo);
+  });
+
   // POST /signup
   app.post('/api/v1/user/signup', async (req, res) => {
     try {
