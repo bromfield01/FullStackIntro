@@ -1,19 +1,20 @@
-// src/App.jsx
+// src/pages/Blog.jsx
 import { PostList } from '../components/PostList.jsx';
 import { CreatePost } from '../components/CreatePost.jsx';
 import { PostFilter } from '../components/PostFilter.jsx';
-import { PostSorting } from '../components/PostSorting.jsx';
+import { Posting } from '../components/Posting.jsx';
 import { Header } from '../components/Header.jsx';
 
+//import PropTypes from 'prop-types'
 import { useState } from 'react';
-
 import { useQuery } from '@tanstack/react-query';
+// adjust this import to wherever your API helper lives
 import { getPosts } from '../api/posts.js';
 
 export function Blog() {
   const [author, setAuthor] = useState('');
-  const [sortBy, setSortBy] = useState('createdAt');
-  const [sortOrder, SetSortOrder] = useState('descending');
+  const [sortBy, setBy] = useState('createdAt');
+  const [sortOrder, setOrder] = useState('descending');
 
   const postsQuery = useQuery({
     queryKey: ['posts', { author, sortBy, sortOrder }],
@@ -33,21 +34,16 @@ export function Blog() {
       <br />
       <hr />
 
-      <div>Filter by:</div>
-      <PostFilter
-        field='author'
-        value={author}
-        onChange={(value) => setAuthor(value)}
-      />
+      <PostFilter author={author} onChangeAuthor={setAuthor} />
 
       <br />
 
-      <PostSorting
+      <Posting
         fields={['createdAt', 'updatedAt']}
         value={sortBy}
-        onChange={(value) => setSortBy(value)}
+        onChange={(value) => setBy(value)}
         orderValue={sortOrder}
-        onOrderChage={(orderValue) => SetSortOrder(orderValue)}
+        onOrderChange={(orderValue) => setOrder(orderValue)}
       />
 
       <hr />
@@ -56,5 +52,3 @@ export function Blog() {
     </div>
   );
 }
-
-export default Blog;
