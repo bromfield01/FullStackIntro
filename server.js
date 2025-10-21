@@ -4,13 +4,61 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import express from 'express';
 import dotenv from 'dotenv';
+import morgan from 'morgan';
 
 dotenv.config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// ========================
+// PRODUCTION SERVER
+// ========================
+async function createProdServer() {
+  const app = express();
+
+  // Enable gzip compression and static serving from dist/client
+  app.use((await import('compression')).default());
+  app.use(
+    (await import('serve-static')).default(
+      path.resolve(__dirname, 'dist/client'),
+      {
+        index: false,
+      },
+    ),
+  );
+
+  app.use('*', async (req, res, next) => {
+    try {
+      // Load prebuilt index.html
+      const template = fs.readFileSync(
+        path.resolve(__dirname, 'dist/client/index.html'),
+        'utf-8',
+      );
+
+      // Load compiled SSR module
+      const { render } = await import('./dist/server/entry-server.js');
+      const appHtml = await render(req);
+
+      // Inject SSR result into template
+      const html = template.replace('<!--ssr-outlet-->', appHtml);
+      res.status(200).set({ 'Content-Type': 'text/html' }).end(html);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  return app;
+}
+
+// ========================
+// DEVELOPMENT SERVER (VITE)
+// ========================
 async function createDevServer() {
   const app = express();
+  app.set('trust proxy', true);
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
+  app.use(morgan('dev'));
 
   const vite = await (
     await import('vite')
@@ -32,8 +80,6 @@ async function createDevServer() {
         req.originalUrl,
         templateHtml,
       );
-
-      // If/when you add SSR rendering:
       const { render } = await vite.ssrLoadModule('/src/entry-server.jsx');
       const appHtml = await render(req);
 
@@ -48,10 +94,18 @@ async function createDevServer() {
   return app;
 }
 
-// top-level await (Node ESM)
-const app = await createDevServer();
+// ========================
+// MAIN ENTRYPOINT
+// ========================
+const isProd = process.env.NODE_ENV === 'production';
+const app = isProd ? await createProdServer() : await createDevServer();
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || 'localhost';
 
 app.listen(PORT, () => {
-  console.log(`ssr dev server running on http://localhost:${PORT}`);
+  console.log(
+    `✅ ${
+      isProd ? 'Production' : 'Development'
+    } SSR server running at http://${HOST}:${PORT}`,
+  );
 });

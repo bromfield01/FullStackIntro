@@ -2,7 +2,7 @@
 import { PostList } from '../components/PostList.jsx';
 import { CreatePost } from '../components/CreatePost.jsx';
 import { PostFilter } from '../components/PostFilter.jsx';
-import { Posting } from '../components/Posting.jsx';
+import { PostSorting } from '../components/PostSorting.jsx';
 import { Header } from '../components/Header.jsx';
 
 //import PropTypes from 'prop-types'
@@ -38,7 +38,7 @@ export function Blog() {
 
       <br />
 
-      <Posting
+      <PostSorting
         fields={['createdAt', 'updatedAt']}
         value={sortBy}
         onChange={(value) => setBy(value)}
