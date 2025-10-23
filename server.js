@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import express from 'express';
 import dotenv from 'dotenv';
 import morgan from 'morgan';
+import { generateSitemap } from './generateSitemap.js';
 
 dotenv.config();
 
@@ -27,19 +28,31 @@ async function createProdServer() {
     ),
   );
 
+  // --- sitemap.xml (prod) ---
+  app.get('/sitemap.xml', async (_req, res, next) => {
+    try {
+      const xml = await generateSitemap();
+      res
+        .status(200)
+        .set({
+          'Content-Type': 'application/xml; charset=utf-8',
+          'Cache-Control': 'public, max-age=300', // 5 minutes
+        })
+        .send(xml);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  // SSR for everything else
   app.use('*', async (req, res, next) => {
     try {
-      // Load prebuilt index.html
       const template = fs.readFileSync(
         path.resolve(__dirname, 'dist/client/index.html'),
         'utf-8',
       );
-
-      // Load compiled SSR module
       const { render } = await import('./dist/server/entry-server.js');
       const appHtml = await render(req);
-
-      // Inject SSR result into template
       const html = template.replace('<!--ssr-outlet-->', appHtml);
       res.status(200).set({ 'Content-Type': 'text/html' }).end(html);
     } catch (e) {
@@ -60,13 +73,25 @@ async function createDevServer() {
   app.use(express.urlencoded({ extended: true }));
   app.use(morgan('dev'));
 
+  // --- sitemap.xml (dev) ---
+  app.get('/sitemap.xml', async (_req, res, next) => {
+    try {
+      const xml = await generateSitemap();
+      res
+        .status(200)
+        .set({ 'Content-Type': 'application/xml; charset=utf-8' })
+        .send(xml);
+    } catch (e) {
+      next(e);
+    }
+  });
+
   const vite = await (
     await import('vite')
   ).createServer({
     server: { middlewareMode: true },
     appType: 'custom',
   });
-
   app.use(vite.middlewares);
 
   app.use('*', async (req, res, next) => {
@@ -75,14 +100,12 @@ async function createDevServer() {
         path.resolve(__dirname, 'index.html'),
         'utf-8',
       );
-
       const template = await vite.transformIndexHtml(
         req.originalUrl,
         templateHtml,
       );
       const { render } = await vite.ssrLoadModule('/src/entry-server.jsx');
       const appHtml = await render(req);
-
       const html = template.replace('<!--ssr-outlet-->', appHtml);
       res.status(200).set({ 'Content-Type': 'text/html' }).end(html);
     } catch (e) {

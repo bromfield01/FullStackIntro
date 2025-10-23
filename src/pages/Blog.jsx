@@ -11,6 +11,8 @@ import { useQuery } from '@tanstack/react-query';
 // adjust this import to wherever your API helper lives
 import { getPosts } from '../api/posts.js';
 
+import { Helmet } from 'react-helmet-async';
+
 export function Blog() {
   const [author, setAuthor] = useState('');
   const [sortBy, setBy] = useState('createdAt');
@@ -25,6 +27,13 @@ export function Blog() {
 
   return (
     <div style={{ padding: 8 }}>
+      <Helmet>
+        <title>Full-Stack React Blog</title>
+        <meta
+          name='description'
+          content='A blog full of articles about full-stack React dvelopment.'
+        />
+      </Helmet>
       <Header />
       <br />
       <hr />
