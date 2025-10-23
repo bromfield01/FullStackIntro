@@ -8,8 +8,8 @@ COPY . .
 
 RUN npm run build
 
-FROM nginx as final
-WORKDIR /usr/share/nginx/html
-COPY --from=build /build/dist .
+EXPOSE 3000
+
+CMD ["npm","start"]
 
 
