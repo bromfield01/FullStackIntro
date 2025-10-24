@@ -3,6 +3,8 @@ import cors from 'cors';
 import { postsRoutes } from './routes/posts.js';
 import { userRoutes } from './routes/users.js';
 
+import { eventRoutes } from './routes/event.js';
+
 const app = express();
 
 app.disable('x-powered-by');
@@ -22,6 +24,7 @@ app.get('/health', (_req, res) =>
 // posts API
 postsRoutes(app);
 userRoutes(app);
+eventRoutes(app);
 
 // 404
 app.use((_req, res) => res.status(404).json({ message: 'Route not found' }));
