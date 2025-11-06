@@ -1,0 +1,4 @@
+{
+    "schema": "https://symmetrical-disco-x96j6v4jgp926qqj-3000.app.github.dev/graphql",
+    "documents": "src/api/graphql/**/*.{js,jsx}"
+}
