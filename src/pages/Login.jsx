@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate, Link } from 'react-router-dom';
 import { login } from '../api/users';
-
 import { useAuth } from '../contexts/AuthContext.jsx';
 
 export function Login() {
@@ -18,7 +17,7 @@ export function Login() {
       setToken(data.token);
       navigate('/');
     },
-    onError: () => alert('failed to login!'),
+    onError: () => alert('Failed to login!'),
   });
 
   const handleSubmit = (e) => {
@@ -31,11 +30,11 @@ export function Login() {
       <Link to='/'>Back to main page</Link>
       <hr />
       <div>
-        <label htmlFor='create-username'>Username:</label>
+        <label htmlFor='login-username'>Username:</label>
         <input
           type='text'
-          name='create-username'
-          id='create-username'
+          name='login-username'
+          id='login-username'
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           autoComplete='username'
@@ -45,14 +44,14 @@ export function Login() {
       <br />
 
       <div>
-        <label htmlFor='create-password'>Password:</label>
+        <label htmlFor='login-password'>Password:</label>
         <input
           type='password'
-          name='create-password'
-          id='create-password'
+          name='login-password'
+          id='login-password'
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          autoComplete='new-password'
+          autoComplete='current-password'
         />
       </div>
 
@@ -60,7 +59,7 @@ export function Login() {
 
       <input
         type='submit'
-        value={loginMutation.isPending ? 'Logging In...' : 'Login In'}
+        value={loginMutation.isPending ? 'Logging In...' : 'Log In'}
         disabled={!username || !password || loginMutation.isPending}
       />
     </form>

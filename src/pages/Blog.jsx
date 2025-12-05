@@ -10,6 +10,8 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getPosts } from '../api/posts.js';
 
+import { ChatPanel } from '../components/ChatPanel.jsx';
+
 export function Blog() {
   const [author, setAuthor] = useState('');
   const [sortBy, setSortBy] = useState('createdAt');
@@ -29,6 +31,10 @@ export function Blog() {
       <hr />
 
       <CreatePost />
+
+      <br />
+      <hr />
+      <ChatPanel />
 
       <br />
       <hr />
